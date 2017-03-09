@@ -62,37 +62,45 @@ void unDead(Node* parent, Node* child, int value)
 	}
 }
 
+// This functions returns root, if a new root is created. Otherwise returns null. [See insert_val]
 Node* insert(Node* node, int value)
 {
 	Node* root = NULL;
 	int node_size = node->keys.size();
 	bool full_flag = false;
-	if(node->keys[node->keys.size() - 1] != null)
+	if(node->keys[node_size - 1] != null)
 		full_flag = true;
+	// The case where nodes are full
 	if(full_flag)
 	{
-		// The case where nodes are full
 		vector<int> tempKeys = node->keys;
 		vector<Node*> tempPointers = node->pointer;
+		// Getting right place to insert the new key
 		int tempIndex = upper_bound(tempKeys.begin(), tempKeys.end(), value) - tempKeys.begin(); 
 		int ubp, newVal;
 		tempKeys.insert(tempKeys.begin() + tempIndex, value);
-		tempPointers.insert(tempPointers.begin() + tempIndex + 1, node->buffer);
+		if(!node->isLeaf)
+			tempPointers.insert(tempPointers.begin() + tempIndex + 1, node->buffer);
 		Node* new_node = init_node(node_size, node->isLeaf);
+		// Since both the nodes will have same parents
 		new_node->parent = node->parent;
 		if(node->isLeaf)
 		{
-			// Connecting adjacent nodes
+			// Adjacent Leaf nodes should be connected to each other
 			new_node->pointer[node_size] = node->pointer[node_size];
 			node->pointer[node_size] = new_node;
+
+			// Assigning the bound on number of pointers that a leaf node is supposed to have after split.
 			double tempFloat = node_size + 1;
 			ubp = (int)ceil(tempFloat/2);
-			// node->keys[ubp - 1] contains the biggest element in node
 		}
 		else
 		{
+			// Assigning the bound on number of pointers that a node is supposed to have after split.
 			double tempFloat = node_size + 2;
 			ubp = (int)ceil((tempFloat)/2);
+
+			// Distributing pointers among the nodes
 			for (int i = 0; i < tempPointers.size(); ++i)
 			{
 				if(i < ubp)
@@ -104,10 +112,13 @@ Node* insert(Node* node, int value)
 						node->pointer[i] = NULL;
 				}
 			}
+
+			// One of the keys is deleted and passed to the node above [For Non-Leaf Case]
 			ubp--;
 			newVal = tempKeys[ubp];
 			tempKeys.erase(tempKeys.begin() + ubp);
 		}
+		// Splits keys between both the nodes
 		for (int i = 0; i < tempKeys.size(); ++i)
 		{
 			if(i < ubp)
@@ -115,17 +126,20 @@ Node* insert(Node* node, int value)
 			else
 			{
 				new_node->keys[i - ubp] = tempKeys[i];
+				// Since a split is made, shifted keys are removed
 				if(i < node_size)
 					node->keys[i] = null;
 			}
 		}
-		// Check if the node is now not dead [for both case]. If Yes, update parents recursively
-		if(node->isDead && value != node->keys[0])
+		
+		// If the node was dead and the value inserted "in it" is new then update the dead status
+ 		if(node->isDead && value != node->keys[0] && tempIndex < ubp)
 		{
 			node->isDead = false;
 			unDead(node->parent, node, value);
 		}
-		// node->keys[ubp - 1] contains the biggest element in node
+
+		// Since node->keys[ubp - 1] is largest key in node, tempIndex will contain the index of smallest newest key
 		tempIndex = upper_bound(new_node->keys.begin(), new_node->keys.end(), node->keys[ubp - 1]) - new_node->keys.begin();
 		if(new_node->keys[tempIndex] == null)
 		{
@@ -137,9 +151,12 @@ Node* insert(Node* node, int value)
 			newVal = new_node->keys[tempIndex];
 
 
-		// Update parent about it and in case there is not parent, create new root
+		// Update parent about the new value inserted and in case there is not parent, create new root
 		if(node->parent != NULL)
 		{
+			/* Buffer basically contains the new node to be added to parent. 
+			It is maintained because there are chances that all pointers are assigned to some node or the other
+			*/
 			node->parent->buffer = new_node;
 			root = insert(node->parent, newVal);
 		}
@@ -155,6 +172,11 @@ Node* insert(Node* node, int value)
 	}
 	else
 	{
+		/*
+			There is no need to update the parent here because of our lookup design. Either if we are inserting the newest smallest then it 
+			has to be the 0th index node because it won't contain pointer to this node and in other case we will insert something which
+			is bigger or equal to smallest newest. See design of lookup function. 
+		*/
 		// Just insert the value and in case it's intermidiate node, insert pointer also.
 		bool insert_flag = false;
 		int tempKey = null;
@@ -180,7 +202,7 @@ Node* insert(Node* node, int value)
 						node->pointer[i + 1] = node->buffer;
 					}
 				}
-				if(value != node->keys[i] && node->isDead)
+				if(value != node->keys[0] && node->isDead)
 				{
 					node->isDead = false;
 					unDead(node->parent, node, value);
@@ -299,17 +321,17 @@ void print_tree(Node* node)
 		for (int i = 0; i < node->pointer.size(); ++i)
 			print_tree(node->pointer[i]);
 	}
-	else{
-		cout << "|";
-		for (int i = 0; i < node->keys.size(); ++i)
-		{
-			if(node->keys[i] == null)
-				cout << "n|";
-			else
-				cout << node->keys[i] << "|";
-		}
-		cout << endl;
+	else
+		cout << "L:";
+	cout << "|";
+	for (int i = 0; i < node->keys.size(); ++i)
+	{
+		if(node->keys[i] == null)
+			cout << "n|";
+		else
+			cout << node->keys[i] << "|";
 	}
+	cout << endl;
 }
 
 void fileRead(int n, char const* fileName)
@@ -346,7 +368,8 @@ void fileRead(int n, char const* fileName)
 		else 
 			cout << "Invalid Command : " << line; 
 	}
-	print_tree(root);
+	// print_tree(root);
+
 }
 
 int main(int argc, char const *argv[])
@@ -359,6 +382,7 @@ int main(int argc, char const *argv[])
 	n = (B - 8)/12;
 	if(n < 2)
 		n = 2;
-	fileRead(n, "./Samples/sampleInput.txt");
+	fileRead(n, "commands.txt");
+	// fileRead(n, "../Samples/sampleInput.txt");
 	return 0;
 }
