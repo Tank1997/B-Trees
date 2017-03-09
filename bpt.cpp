@@ -108,6 +108,8 @@ Node* insert(Node* node, int value)
 				else
 				{
 					new_node->pointer[i - ubp] = tempPointers[i];
+					// All the children assigned to new_node should be updated about their new parent
+					new_node->pointer[i - ubp]->parent = new_node;
 					if(i <= node_size)
 						node->pointer[i] = NULL;
 				}
@@ -382,7 +384,7 @@ int main(int argc, char const *argv[])
 	n = (B - 8)/12;
 	if(n < 2)
 		n = 2;
-	fileRead(n, "commands.txt");
-	// fileRead(n, "../Samples/sampleInput.txt");
+	// fileRead(n, "commands.txt");
+	fileRead(n, "./Samples/sampleInput.txt");
 	return 0;
 }
